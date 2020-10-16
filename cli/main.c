@@ -193,6 +193,8 @@ error:
     assert (result != 0);
 
 exit:
+    free(hostname);
+    free(publicKey);
 
     return result;
 
