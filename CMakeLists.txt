@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.12)
 project(craggy C)
 
 set(CMAKE_C_STANDARD 11)
@@ -25,7 +25,7 @@ option(CRAGGY_WITH_ORLP_ED25519_BINDINGS "Use ORLPs ED25519 cryptographic operat
 add_subdirectory(library)
 
 enable_testing()
-add_subdirectory(test)
+add_subdirectory(tests)
 
 add_subdirectory(cli)
 

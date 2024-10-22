@@ -2,9 +2,13 @@
 
 Craggy is a Roughtime secure time synchronization client implementation in C.  It draws both code and inspiration from the Google C++ client implementation. 
 
+![CMake Build](https://github.com/nahojkap/craggy/workflows/CMake/badge.svg)
+
 ### Dependencies
 
-Craggy requires two cryptographic operations to work, ED 25519 signature validation and SHA512.  Current build can be configured to use either OpenSSL or the ED 25519 implementation from https://github.com/orlp/ed25519 (which also provides SHA512).  
+Craggy requires two cryptographic operations to work, ED 25519 signature validation and SHA512.
+
+Current build can be configured to use either OpenSSL or the ED 25519 implementation from https://github.com/orlp/ed25519 (which also provides SHA512).
 
 To configure the crypto provider, use '-DCRAGGY_WITH_OPENSSL_BINDINGS=ON' or '-DCRAGGY_WITH_ORLP_ED25519_BINDINGS=ON' respectively.
 

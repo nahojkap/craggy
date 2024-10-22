@@ -16,6 +16,7 @@
 #define CRAGGY_CRAGGYOS_H
 
 #include <memory.h>
+#include <stdlib.h>
 
 #define craggy_malloc malloc
 #define craggy_calloc calloc

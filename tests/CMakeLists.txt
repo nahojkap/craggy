@@ -17,7 +17,7 @@ project(craggy-test)
 set(CMAKE_CXX_STANDARD 11)
 
 # Download and unpack googletest at configure time
-configure_file(../gtest/CMakeLists.txt.in googletest-download/CMakeLists.txt)
+configure_file(gtest/CMakeLists.txt.in googletest-download/CMakeLists.txt)
 execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
         RESULT_VARIABLE result
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
@@ -50,8 +50,16 @@ endif()
 
 # Now simply link against gtest or gtest_main as needed. Eg
 add_executable(craggy-test TestCrypto.cpp)
+
+include(GoogleTest)
+
+gtest_discover_tests(craggy-test)
+
 target_link_libraries(craggy-test craggy)
 target_link_libraries(craggy-test gtest_main)
 
-add_test(NAME example_test COMMAND craggy-test)
+# add_test(NAME example_test COMMAND craggy-test)
+include (CTest)
 
+# find_program( MEMORYCHECK_COMMAND valgrind )
+# set( MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20" )
