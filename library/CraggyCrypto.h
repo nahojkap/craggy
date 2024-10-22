@@ -23,6 +23,8 @@ extern "C" {
 #include <stdbool.h>
 #include "CraggyTypes.h"
 
+#define CRAGGY_CRYPTO_SHA512_LENGTH 64
+
 /**
  *
  * @param rootPublicKey
@@ -40,7 +42,7 @@ bool craggy_verifySignature(const craggy_rough_time_public_key_t rootPublicKey, 
  * @param hash
  * @return
  */
-bool craggy_calculateSHA512(const uint8_t *msg, size_t msgLen, uint8_t hash[CRAGGY_ROUGH_TIME_HASH_LENGTH]);
+bool craggy_calculateSHA512(const uint8_t *msg, size_t msgLen, uint8_t hash[CRAGGY_CRYPTO_SHA512_LENGTH]);
 
 /**
  *

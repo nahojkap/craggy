@@ -28,6 +28,6 @@
  * @param responseBufLen Size of the response buffer.  If a response is successfully received, the corresponding size of the response is signalled here too.
  * @return True if the request is successful, otherwise false (and outResult will indicate the error)
  */
-bool craggy_makeRequest(const char *address, const craggy_rough_time_request_t requestBuf, CraggyResult *result, craggy_rough_time_response_t *responseBuf, size_t *responseBufLen);
+bool craggy_makeRequest(const char *address, const craggy_rough_time_request_t requestBuf, CraggyResult *result, craggy_rough_time_response_t responseBuf, size_t *responseBufLen);
 
 #endif //CRAGGY_UDPTRANSPORT_H

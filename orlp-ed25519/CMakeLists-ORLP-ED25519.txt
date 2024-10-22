@@ -12,20 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+cmake_minimum_required(VERSION 3.12)
 
 project(craggy-orlp-ed25519 C)
 
 set(SOURCES
-        add_scalar
-        fe
-        ge
-        key_exchange
-        keypair
-        sc
-        seed
-        sha512
-        sign
-        verify)
+        add_scalar.c
+        fe.c
+        ge.c
+        key_exchange.c
+        keypair.c
+        sc.c
+        seed.c
+        sha512.c
+        sign.c
+        verify.c)
 
 
 set(craggy-orlp-ed25519_include_dirs "${craggy-orlp-ed25519_SOURCE_DIR}")

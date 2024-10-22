@@ -23,7 +23,7 @@ bool craggy_verifySignature(const craggy_rough_time_public_key_t rootPublicKey, 
     return ed25519_verify(signature,msg,msgLen,rootPublicKey) == 1;
 }
 
-bool craggy_calculateSHA512(const uint8_t *msg, const size_t msgLen, uint8_t hash[CRAGGY_ROUGH_TIME_HASH_LENGTH])
+bool craggy_calculateSHA512(const uint8_t *msg, const size_t msgLen, uint8_t hash[CRAGGY_ROUGHTIME_HASH_LENGTH])
 {
     sha512_context hashContext;
     sha512_init(&hashContext);
