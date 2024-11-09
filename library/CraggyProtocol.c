@@ -34,7 +34,6 @@ struct CraggyRoughtimeMessage {
 struct CraggyRoughtimeMessageBuilder {
 
     const uint8_t *out;
-    size_t outLen;
 
     uint32_t numTags;
     uint32_t tagsAdded;
@@ -79,12 +78,12 @@ static int tag_cmp(const void *keyp, const void *memberp) {
     return key < member ? -1 : 1;
 }
 
-bool craggy_getTag(const CraggyRoughtimeMessage *message, uint8_t **outData, size_t *outLen, craggy_tag_t tag) {
-    uint8_t *tagPtr = bsearch(&tag, message->tags, message->numTags, sizeof(craggy_tag_t), tag_cmp);
+bool craggy_getTag(const CraggyRoughtimeMessage *message, const craggy_tag_t tag, uint8_t **outData, size_t *outLen) {
+    const uint8_t *tagPtr = bsearch(&tag, message->tags, message->numTags, sizeof(craggy_tag_t), tag_cmp);
     if (tagPtr == NULL) {
         return false;
     }
-    size_t tagNumber = (tagPtr - message->tags) / sizeof(uint32_t);
+    const size_t tagNumber = (tagPtr - message->tags) / sizeof(uint32_t);
     uint32_t offset = 0;
     if (tagNumber != 0) {
         craggy_memcpy(&offset, message->offsets + sizeof(uint32_t) * (tagNumber - 1), sizeof(uint32_t));
@@ -103,17 +102,17 @@ bool craggy_getTag(const CraggyRoughtimeMessage *message, uint8_t **outData, siz
 bool craggy_hasTag(const CraggyRoughtimeMessage *message, craggy_tag_t tag) {
     uint8_t *outData = NULL;
     size_t outLen = 0;
-    return craggy_getTag(message, &outData, &outLen, tag);
+    return craggy_getTag(message, tag, &outData, &outLen);
 }
 
 
-bool craggy_getFixedLenTag(const CraggyRoughtimeMessage *message, uint8_t **outData, craggy_tag_t tag,
-                           size_t expectedLen) {
+bool craggy_getFixedLenTag(const CraggyRoughtimeMessage *message, const craggy_tag_t tag, const size_t expectedTagLen,
+                           uint8_t **outData) {
     size_t len;
-    return craggy_getTag(message, outData, &len, tag) && len == expectedLen;
+    return craggy_getTag(message, tag, outData, &len) && len == expectedTagLen;
 }
 
-bool craggy_parseMessage(const uint8_t *in, const  size_t inLen, CraggyRoughtimeMessage **message) {
+bool craggy_parseMessage(const uint8_t *in, size_t inLen, CraggyProtocolResult *result, CraggyRoughtimeMessage **message) {
 
     uint8_t *ourIn = (uint8_t*)in;
     size_t ourInLen = inLen;
@@ -122,15 +121,16 @@ bool craggy_parseMessage(const uint8_t *in, const  size_t inLen, CraggyRoughtime
     craggy_memcpy(&numTags, ourIn, sizeof(uint32_t));
     advance(&ourIn, &ourInLen, sizeof(uint32_t));
 
-
     if (0xffff < numTags) {
         // Avoids any subsequent overflows.
+        *result = CraggyProtocolResultTooManyTags;
         return false;
     }
 
     // Validate table of offsets.
     const size_t numOffsets = numMessageOffsets(numTags);
     if (inLen < numOffsets * sizeof(uint32_t)) {
+        *result = CraggyProtocolResultInvalidOffset;
         return false;
     }
 
@@ -143,6 +143,7 @@ bool craggy_parseMessage(const uint8_t *in, const  size_t inLen, CraggyRoughtime
         uint32_t offset;
         craggy_memcpy(&offset, offsetsPtr + sizeof(uint32_t) * i, sizeof(uint32_t));
         if (offset < previousOffset || offset % 4 != 0) {
+            *result = CraggyProtocolResultInvalidOffset;
             return false;
         }
         previousOffset = offset;
@@ -151,6 +152,7 @@ bool craggy_parseMessage(const uint8_t *in, const  size_t inLen, CraggyRoughtime
 
     // Validate list of tags.  Tags must be in increasing order.
     if (inLen < numTags * sizeof(craggy_tag_t)) {
+        *result = CraggyProtocolResultInvalidOffset;
         return false;
     }
 
@@ -161,6 +163,7 @@ bool craggy_parseMessage(const uint8_t *in, const  size_t inLen, CraggyRoughtime
         craggy_tag_t tag;
         craggy_memcpy(&tag, tagsPtr + sizeof(craggy_tag_t) * i, sizeof(craggy_tag_t));
         if (i > 0 && tag <= previousTag) {
+            *result = CraggyProtocolResultTagsNotInOrder;
             return false;
         }
         previousTag = tag;
@@ -168,6 +171,7 @@ bool craggy_parseMessage(const uint8_t *in, const  size_t inLen, CraggyRoughtime
 
     // Make sure the offset table doesn't point past the end of the data.
     if (inLen < lastOffset) {
+        *result = CraggyProtocolResultInvalidOffset;
         return false;
     }
 
@@ -183,6 +187,7 @@ bool craggy_parseMessage(const uint8_t *in, const  size_t inLen, CraggyRoughtime
     (*message)->dataLen = ourInLen;
     (*message)->valid = true;
 
+    *result = CraggyProtocolResultSuccess;
     return true;
 
 }
@@ -212,8 +217,7 @@ bool craggy_createMessageBuilder(const size_t numTags, uint8_t *out, size_t outL
     *builder = craggy_calloc(1, sizeof(CraggyRoughtimeMessageBuilder));
     (*builder)->valid = false;
 
-    const uint32_t numTags32 = numTags;
-    craggy_memcpy(out, &numTags32, sizeof(uint32_t));
+    craggy_memcpy(out, &numTags, sizeof(uint32_t));
 
     (*builder)->headerLen = headerLen;
     (*builder)->out = out;
@@ -223,16 +227,15 @@ bool craggy_createMessageBuilder(const size_t numTags, uint8_t *out, size_t outL
     (*builder)->offsets = out + sizeof(uint32_t);
     (*builder)->tags = out + sizeof(uint32_t) * (1 + numMessageOffsets(numTags));
 
-    (*builder)->numTags = numTags;
+    (*builder)->numTags = (uint32_t)numTags;
     (*builder)->out = out;
-    (*builder)->outLen = outLen;
 
     (*builder)->valid = true;
 
     return true;
 }
 
-bool craggy_addTag(CraggyRoughtimeMessageBuilder *builder, uint8_t **out_data, craggy_tag_t tag, size_t len) {
+bool craggy_addTag(CraggyRoughtimeMessageBuilder *builder, craggy_tag_t tag, size_t len, uint8_t **out_data) {
 
     if (!builder->valid || len % 4 != 0 || builder->len < len || builder->tagsAdded >= builder->numTags ||
         (builder->havePreviousTag && tag <= builder->previousTag)) {
@@ -259,7 +262,7 @@ bool craggy_addTag(CraggyRoughtimeMessageBuilder *builder, uint8_t **out_data, c
 
 bool craggy_addTagData(CraggyRoughtimeMessageBuilder *builder, craggy_tag_t tag, const uint8_t *data, size_t len) {
     uint8_t *out;
-    if (!craggy_addTag(builder, &out, tag, len)) {
+    if (!craggy_addTag(builder, tag, len, &out)) {
         return false;
     }
     craggy_memcpy(out, data, len);

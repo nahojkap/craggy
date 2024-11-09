@@ -18,7 +18,7 @@
 
 #include "CraggyCrypto.h"
 
-bool craggy_verifySignature(const craggy_rough_time_public_key_t rootPublicKey, const uint8_t *signature, const uint8_t *msg, const size_t msgLen)
+bool craggy_verifySignature(const craggy_roughtime_public_key_t rootPublicKey, const uint8_t *signature, const uint8_t *msg, const size_t msgLen)
 {
     EVP_PKEY *key = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL,rootPublicKey,CRAGGY_ROUGH_TIME_PUBLIC_KEY_LENGTH);
 

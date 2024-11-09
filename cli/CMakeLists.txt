@@ -16,8 +16,8 @@
 project(craggy-cli C)
 
 set(SOURCES
-        base64
-        main)
+        base64.c
+        main.c)
 
 add_executable(craggy-cli ${SOURCES})
 target_link_libraries(craggy-cli craggy)

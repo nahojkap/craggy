@@ -19,6 +19,7 @@
 #include <inttypes.h>
 #include <getopt.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include "base64.h"
 #include "CraggyTransport.h"
@@ -50,7 +51,7 @@ int main(int argc, char *argv[]) {
 
     static struct option long_options[] = {
             {"host",    required_argument, 0,             'h'},
-            {"key",    required_argument, 0,             'k'},
+            {"key",     required_argument, 0,             'k'},
             {"nonce",   optional_argument, 0,             'n'},
             {0, 0,                         0,             0}
     };
@@ -82,18 +83,15 @@ int main(int argc, char *argv[]) {
                 break;
 
             case 'h':
-                hostname = malloc(strlen(optarg)+1);
-                hostname = strcpy(hostname, optarg);
+                hostname = strdup(optarg);
                 break;
 
             case 'n':
-                nonce = malloc(strlen(optarg)+1);
-                nonce = strcpy(hostname, optarg);
+                nonce = strdup(optarg);
                 break;
 
             case 'k':
-                publicKey = malloc(strlen(optarg)+1);
-                publicKey = strcpy(publicKey, optarg);
+                publicKey = strdup(optarg);
                 break;
 
             case '?':
@@ -111,29 +109,27 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    craggy_rough_time_public_key_t rootPublicKey;
+    craggy_roughtime_public_key_t rootPublicKey;
     size_t base64DecodedRootPublicKeyLen = 0;
     unsigned char *base64DecodedRootPublicKey = base64_decode((const unsigned char *) publicKey, strlen(publicKey), &base64DecodedRootPublicKeyLen);
-
-    if (base64DecodedRootPublicKeyLen != CRAGGY_ROUGH_TIME_PUBLIC_KEY_LENGTH) {
-        printf("Public key length must be %d byte(s) (got %zu after base64 decoding)", CRAGGY_ROUGH_TIME_PUBLIC_KEY_LENGTH, base64DecodedRootPublicKeyLen);
+    if (base64DecodedRootPublicKeyLen != CRAGGY_ROUGHTIME_PUBLIC_KEY_LENGTH) {
+        printf("Public key length must be %d byte(s) (got %zu after base64 decoding)", CRAGGY_ROUGHTIME_PUBLIC_KEY_LENGTH, base64DecodedRootPublicKeyLen);
         goto error;
     }
-    memcpy(&rootPublicKey, base64DecodedRootPublicKey, CRAGGY_ROUGH_TIME_PUBLIC_KEY_LENGTH);
+    memcpy(&rootPublicKey, base64DecodedRootPublicKey, CRAGGY_ROUGHTIME_PUBLIC_KEY_LENGTH);
     free(base64DecodedRootPublicKey);
 
-    craggy_rough_time_request_t requestBuf;
-    memset(requestBuf, 0, sizeof(craggy_rough_time_request_t));
+    craggy_roughtime_request_t requestBuf;
+    memset(requestBuf, 0, sizeof(craggy_roughtime_request_t));
 
-    craggy_rough_time_nonce_t nonceBytes;
-    memset(nonceBytes, 1, CRAGGY_ROUGH_TIME_NONCE_LENGTH);
+    craggy_roughtime_nonce_t nonceBytes;
 
     if (nonce != NULL)
     {
         size_t outLen = 0;
         unsigned char *decodedNonceBytes = base64_decode((unsigned char*)nonce, strlen(nonce), &outLen);
-        if (outLen != CRAGGY_ROUGH_TIME_NONCE_LENGTH) {
-            printf("Nonce length must be %d byte(s) (got %zu after base64 decoding)", CRAGGY_ROUGH_TIME_NONCE_LENGTH, outLen);
+        if (outLen != CRAGGY_ROUGHTIME_NONCE_LENGTH) {
+            printf("Nonce length must be %d byte(s) (got %zu after base64 decoding)", CRAGGY_ROUGHTIME_NONCE_LENGTH, outLen);
             goto error;
         }
         memcpy(nonceBytes, decodedNonceBytes, outLen);
@@ -147,39 +143,34 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (craggy_createRequest(nonceBytes, requestBuf))
+    if (craggy_createRequest(rootPublicKey, nonceBytes, requestBuf))
     {
         const uint64_t start_us = MonotonicUs();
 
-        craggy_rough_time_t timestamp;
-        uint32_t radius;
-
-        size_t responseBufLen = CRAGGY_ROUGH_TIME_MIN_REQUEST_SIZE *3;
-        craggy_rough_time_response_t responseBuf[responseBufLen];
+        size_t responseBufLen = 0;
+        craggy_roughtime_response_t responseBuf;
 
         if (craggy_makeRequest(hostname, requestBuf, &craggyResult, responseBuf, &responseBufLen)) {
 
-            if (!craggy_processResponse(nonceBytes, rootPublicKey, responseBuf, responseBufLen, &craggyResult, &timestamp, &radius)) {
+            const uint64_t end_us = MonotonicUs();
+            const uint64_t roundtripElapsedTimeUs = (end_us - start_us) / 2;
+            const uint64_t endRealtimeUs = RealtimeUs();
+
+            craggy_roughtime_result roughtimeResult;
+
+            if (!craggy_processResponse(nonceBytes, rootPublicKey, responseBuf, responseBufLen, &craggyResult, &roughtimeResult)) {
                 printf("Error parsing response: %d", craggyResult);
                 goto error;
             }
 
-            const uint64_t end_us = MonotonicUs();
-            const uint64_t end_realtime_us = RealtimeUs();
-
             // We assume that the path to the Roughtime server is symmetric and thus add
             // half the round-trip time to the server's timestamp to produce our estimate
             // of the current time.
-            timestamp += (end_us - start_us) / 2;
-            printf("Received reply in %" PRIu64 "μs.\n", end_us - start_us);
-            printf("Current time is %" PRIu64 "μs from the epoch, ±%uμs \n", timestamp, radius);
-            int64_t system_offset = timestamp - end_realtime_us;
-            printf("System clock differs from that estimate by %" PRId64 "μs.\n", system_offset);
-            static const int64_t kTenMinutes = 10 * 60 * 1000000;
+            printf("Received reply in %" PRIu64 "μs. (%dms)\n", end_us - start_us, (uint32_t)(end_us - start_us)/1000);
+            printf("Current time is %" PRIu64 "ms from the epoch, ±%us \n", (roughtimeResult.midpoint + (roundtripElapsedTimeUs/1000)), roughtimeResult.radius);
+            int64_t systemOffsetUs = (roughtimeResult.midpoint*1000000) - endRealtimeUs;
+            printf("System clock differs from that estimate by %" PRId64 "μs. (%dms)\n", systemOffsetUs, (int32_t)(systemOffsetUs/1000));
 
-            if (imaxabs(system_offset) > kTenMinutes) {
-                goto error;
-            }
         }
         else {
             printf("Error making request: %d", craggyResult);
@@ -190,6 +181,8 @@ int main(int argc, char *argv[]) {
 
     goto exit;
 error:
+    printf("Error request %d\n", result);
+
     assert (result != 0);
 
 exit:
