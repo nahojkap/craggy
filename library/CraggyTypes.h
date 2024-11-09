@@ -52,16 +52,17 @@ typedef uint8_t craggy_rough_time_payload_t[CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE];
 typedef craggy_rough_time_payload_t craggy_rough_time_request_t;
 typedef craggy_rough_time_payload_t craggy_rough_time_response_t;
 
-typedef uint8_t craggy_rough_time_nonce_t[CRAGGY_ROUGHTIME_NONCE_LENGTH];
-typedef uint8_t craggy_rough_time_public_key_t[CRAGGY_ROUGHTIME_PUBLIC_KEY_LENGTH];
+typedef uint8_t craggy_roughtime_nonce_t[CRAGGY_ROUGHTIME_NONCE_LENGTH];
+typedef uint8_t craggy_roughtime_nonce_t[CRAGGY_ROUGHTIME_NONCE_LENGTH];
+typedef uint8_t craggy_roughtime_public_key_t[CRAGGY_ROUGHTIME_PUBLIC_KEY_LENGTH];
 
-typedef uint32_t craggy_rough_time_radius_t;
+typedef uint32_t craggy_roughtime_radius_t;
 typedef uint64_t craggy_roughtime_t;
 
 /** Structure containing the Roughtime results */
 typedef struct craggy_roughtime_result {
     craggy_roughtime_t midpoint;
-    craggy_rough_time_radius_t radius;
+    craggy_roughtime_radius_t radius;
 } craggy_roughtime_result;
 
 #endif //CRAGGY_CRAGGYTYPES_H

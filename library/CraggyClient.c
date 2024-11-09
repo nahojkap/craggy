@@ -28,33 +28,56 @@
 
 #define CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE 12
 
-bool craggy_generateNonce(CraggyResult *result, craggy_rough_time_nonce_t nonce)
+bool craggy_generateNonce(CraggyResult *result, craggy_roughtime_nonce_t nonce)
 {
     craggy_fillRandomBytes(nonce, CRAGGY_ROUGHTIME_NONCE_LENGTH, result);
     return *result == CraggyResultSuccess;
 }
 
-bool craggy_createRequest(craggy_rough_time_nonce_t nonce, craggy_rough_time_request_t requestBuf) {
+bool craggy_calculateSRVHash(craggy_roughtime_public_key_t rootPublicKey, uint8_t srvHash[32]) {
+
+    /**
+   The SRV tag is used by the client to indicate which long-term public
+   key it expects to verify the response with.  The value of the SRV tag
+   is H(0xff || public_key) where public_key is the server's long-term,
+   32-byte Ed25519 public key and H is SHA512 truncated to the first 32
+   bytes.
+     */
+
+    uint8_t msg[1+sizeof(craggy_roughtime_public_key_t)];
+    msg[0] = 0xFF;
+    craggy_memcpy(&msg[1], rootPublicKey, sizeof(craggy_roughtime_public_key_t));
+    uint8_t hash[CRAGGY_CRYPTO_SHA512_LENGTH];
+    craggy_calculateSHA512(msg,1+sizeof(craggy_roughtime_public_key_t),hash);
+    craggy_memcpy(srvHash, hash, 32);
+    return true;
+}
+
+bool craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_nonce_t nonce, craggy_rough_time_request_t requestBuf) {
 
     bool success = false;
 
     size_t requestBufLen = 0;
-    size_t paddingLen = CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE - (CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE + craggy_messageHeaderLen(3) + CRAGGY_ROUGHTIME_NONCE_LENGTH + sizeof(uint32_t));
+    size_t paddingLen = CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE - (CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE + craggy_messageHeaderLen(4) + 32 + CRAGGY_ROUGHTIME_NONCE_LENGTH + sizeof(uint32_t));
     uint8_t padding[paddingLen];
     craggy_memset(padding, 0, paddingLen);
 
     CraggyRoughtimeMessageBuilder *builder = NULL;
 
-    if (craggy_createMessageBuilder(3, requestBuf+CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE, CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE-12, &builder)) {
+    if (craggy_createMessageBuilder(4, requestBuf+CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE, CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE-12, &builder)) {
         uint32_t version = CRAGGY_ROUGHTIME_VERSION;
+        uint8_t srvHash[32];
+        craggy_calculateSRVHash(rootPublicKey, srvHash);
         if (craggy_addTagData(builder, CRAGGY_TAG_VER, (uint8_t *) &version, sizeof(uint32_t))) {
-            if (craggy_addTagData(builder, CRAGGY_TAG_NONCE, nonce, CRAGGY_ROUGHTIME_NONCE_LENGTH)) {
-                if (craggy_addTagData(builder, CRAGGY_TAG_ZZZZ, padding, paddingLen)) {
-                    success = craggy_finish(builder, &requestBufLen);
-                    assert(requestBufLen == (CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE-CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE));
-                    // Insert the ROUGHTIME header + the size of the payload
-                    craggy_memcpy(requestBuf,&CRAGGY_ROUGHTIME_HEADER, sizeof(CRAGGY_ROUGHTIME_HEADER));
-                    craggy_memcpy(requestBuf+sizeof(uint64_t),&requestBufLen, sizeof(uint32_t));
+            if (craggy_addTagData(builder, CRAGGY_TAG_SRV, srvHash, 32)) {
+                if (craggy_addTagData(builder, CRAGGY_TAG_NONCE, nonce, CRAGGY_ROUGHTIME_NONCE_LENGTH)) {
+                    if (craggy_addTagData(builder, CRAGGY_TAG_ZZZZ, padding, paddingLen)) {
+                        success = craggy_finish(builder, &requestBufLen);
+                        assert(requestBufLen == (CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE-CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE));
+                        // Insert the ROUGHTIME header + the size of the payload
+                        craggy_memcpy(requestBuf,&CRAGGY_ROUGHTIME_HEADER, sizeof(CRAGGY_ROUGHTIME_HEADER));
+                        craggy_memcpy(requestBuf+sizeof(uint64_t),&requestBufLen, sizeof(uint32_t));
+                    }
                 }
             }
         }
@@ -63,7 +86,7 @@ bool craggy_createRequest(craggy_rough_time_nonce_t nonce, craggy_rough_time_req
     return success;
 }
 
-static bool craggy_verifySignatureWithContext(const craggy_rough_time_public_key_t rootPublicKey, const char *context, const uint8_t *signature, const uint8_t *msg, const size_t msgLen) {
+static bool craggy_verifySignatureWithContext(const craggy_roughtime_public_key_t rootPublicKey, const char *context, const uint8_t *signature, const uint8_t *msg, const size_t msgLen) {
 
     size_t signedDataLen = strlen(context) + 1 + msgLen;
     uint8_t signedData[signedDataLen];
@@ -98,7 +121,7 @@ static bool craggy_verifySignatureWithContext(const craggy_rough_time_public_key
 #define HASH_NODE(hash, scratch,left, right) scratch[0] = '\x01'; craggy_memcpy((scratch)+1, (left), CRAGGY_ROUGHTIME_HASH_LENGTH); craggy_memcpy((scratch)+1+CRAGGY_ROUGHTIME_HASH_LENGTH, (right), CRAGGY_ROUGHTIME_HASH_LENGTH); if (!craggy_calculateSHA512(scratch, (2*CRAGGY_ROUGHTIME_HASH_LENGTH)+1, (hash))) { ERROR_OCCURRED(CraggyResultInternalError) };
 #define HASH_NONCE(hash, scratch,leaf) scratch[0] = '\x00'; craggy_memcpy((scratch)+1,(leaf), CRAGGY_ROUGHTIME_NONCE_LENGTH); if (!craggy_calculateSHA512((scratch), CRAGGY_ROUGHTIME_NONCE_LENGTH+1, (hash))) { ERROR_OCCURRED(CraggyResultInternalError) };
 
-bool craggy_processResponse(craggy_rough_time_nonce_t nonce, craggy_rough_time_public_key_t rootPublicKey, craggy_rough_time_response_t response, size_t responseLen, CraggyResult *result, craggy_roughtime_result *roughtimeResult) {
+bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_public_key_t rootPublicKey, craggy_rough_time_response_t response, size_t responseLen, CraggyResult *result, craggy_roughtime_result *roughtimeResult) {
 
     *result = CraggyResultGeneralError;
 
@@ -289,12 +312,11 @@ bool craggy_processResponse(craggy_rough_time_nonce_t nonce, craggy_rough_time_p
 
     /** 5. Return the midpoint and radius. */
 
-    if (!craggy_getFixedLenTag(srepMessage, CRAGGY_TAG_RADI, sizeof(craggy_rough_time_radius_t), &nestedData))
-    {
+    if (!craggy_getFixedLenTag(srepMessage, CRAGGY_TAG_RADI, sizeof(craggy_roughtime_radius_t), &nestedData)) {
         ERROR_OCCURRED(CraggyResultParseErrorTagSizeMismatch);
     }
 
-    craggy_memcpy(&roughtimeResult->radius, nestedData, sizeof(craggy_rough_time_radius_t));
+    craggy_memcpy(&roughtimeResult->radius, nestedData, sizeof(craggy_roughtime_radius_t));
     craggy_memcpy(&roughtimeResult->midpoint, &midPoint, sizeof(craggy_roughtime_t));
 
     *result = CraggyResultSuccess;

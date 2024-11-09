@@ -18,7 +18,7 @@
 
 #include "CraggyCrypto.h"
 
-bool craggy_verifySignature(const craggy_rough_time_public_key_t rootPublicKey, const uint8_t *signature, const uint8_t *msg, const size_t msgLen)
+bool craggy_verifySignature(const craggy_roughtime_public_key_t rootPublicKey, const uint8_t *signature, const uint8_t *msg, const size_t msgLen)
 {
     return ed25519_verify(signature,msg,msgLen,rootPublicKey) == 1;
 }

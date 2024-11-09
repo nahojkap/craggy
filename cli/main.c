@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    craggy_rough_time_public_key_t rootPublicKey;
+    craggy_roughtime_public_key_t rootPublicKey;
     size_t base64DecodedRootPublicKeyLen = 0;
     unsigned char *base64DecodedRootPublicKey = base64_decode((const unsigned char *) publicKey, strlen(publicKey), &base64DecodedRootPublicKeyLen);
     if (base64DecodedRootPublicKeyLen != CRAGGY_ROUGHTIME_PUBLIC_KEY_LENGTH) {
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
     craggy_rough_time_request_t requestBuf;
     memset(requestBuf, 0, sizeof(craggy_rough_time_request_t));
 
-    craggy_rough_time_nonce_t nonceBytes;
+    craggy_roughtime_nonce_t nonceBytes;
 
     if (nonce != NULL)
     {
@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (craggy_createRequest(nonceBytes, requestBuf))
+    if (craggy_createRequest(rootPublicKey, nonceBytes, requestBuf))
     {
         const uint64_t start_us = MonotonicUs();
 

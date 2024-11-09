@@ -14,6 +14,7 @@
  */
 
 #include <cstring>
+
 #include "gtest/gtest.h"
 
 #include "CraggyCrypto.h"
@@ -36,6 +37,7 @@ TEST(CraggyCryptoTests, FillRandomBytes) {
     EXPECT_NE(0, std::memcmp(originalBytes, bytes, 32));
 
     delete[] bytes;
+    delete[] originalBytes;
 
 }
 

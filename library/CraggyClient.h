@@ -26,11 +26,12 @@ extern "C" {
 
 /** Creates a new Roughtime request message containing the specified nonce.
  *
+ * @param rootPublicKey Root public key of the server in question
  * @param nonce The nonce to include in the request
  * @param requestBuf Buffer for the request
  * @return True if the request creation was successful, otherwise false
  */
-bool craggy_createRequest(craggy_rough_time_nonce_t nonce, craggy_rough_time_request_t requestBuf);
+bool craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_nonce_t nonce, craggy_rough_time_request_t requestBuf);
 
 /** Processes a response from the server, verifying the necessary signatures and extracting the time and radius if successful.
  *
@@ -42,7 +43,7 @@ bool craggy_createRequest(craggy_rough_time_nonce_t nonce, craggy_rough_time_req
  * @param roughtimeResult
  * @return True if the request creation was successful, otherwise false and {@link result} will signal the error
  */
-bool craggy_processResponse(craggy_rough_time_nonce_t nonce, craggy_rough_time_public_key_t rootPublicKey, craggy_rough_time_response_t responseBuf, size_t responseBufLen, CraggyResult *result,
+bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_public_key_t rootPublicKey, craggy_rough_time_response_t responseBuf, size_t responseBufLen, CraggyResult *result,
                             craggy_roughtime_result *roughtimeResult);
 
 /** Generates a new nonce value, placing it in the nonce specified.
@@ -51,7 +52,7 @@ bool craggy_processResponse(craggy_rough_time_nonce_t nonce, craggy_rough_time_p
  * @param nonce Nonce to place the generated value in
  * @return True if successful, otherwise false and {@link result} will indicate the error
  */
-bool craggy_generateNonce(CraggyResult *result, craggy_rough_time_nonce_t nonce);
+bool craggy_generateNonce(CraggyResult *result, craggy_roughtime_nonce_t nonce);
 
 #ifdef __cplusplus
 }
