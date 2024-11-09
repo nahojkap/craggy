@@ -91,7 +91,7 @@ exit:
     return *result == CraggyResultSuccess;
 }
 
-bool craggy_makeRequest(const char *address, const craggy_rough_time_request_t requestBuf, CraggyResult *result, craggy_rough_time_response_t responseBuf, size_t *responseBufLen) {
+bool craggy_makeRequest(const char *address, const craggy_roughtime_request_t requestBuf, CraggyResult *result, craggy_roughtime_response_t responseBuf, size_t *responseBufLen) {
 
     *result = CraggyResultGeneralError;
 
@@ -107,10 +107,10 @@ bool craggy_makeRequest(const char *address, const craggy_rough_time_request_t r
 
     ssize_t r;
     do {
-        r = send(fd, requestBuf, sizeof(craggy_rough_time_request_t), 0 /* flags */);
+        r = send(fd, requestBuf, sizeof(craggy_roughtime_request_t), 0 /* flags */);
     } while (r == -1 && errno == EINTR);
 
-    if (r != sizeof(craggy_rough_time_request_t)) {
+    if (r != sizeof(craggy_roughtime_request_t)) {
         ERROR_OCCURRED(CraggyResultNetworkInternalError);
     }
 

@@ -53,7 +53,7 @@ bool craggy_calculateSRVHash(craggy_roughtime_public_key_t rootPublicKey, uint8_
     return true;
 }
 
-bool craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_nonce_t nonce, craggy_rough_time_request_t requestBuf) {
+bool craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_nonce_t nonce, craggy_roughtime_request_t requestBuf) {
 
     bool success = false;
 
@@ -121,7 +121,7 @@ static bool craggy_verifySignatureWithContext(const craggy_roughtime_public_key_
 #define HASH_NODE(hash, scratch,left, right) scratch[0] = '\x01'; craggy_memcpy((scratch)+1, (left), CRAGGY_ROUGHTIME_HASH_LENGTH); craggy_memcpy((scratch)+1+CRAGGY_ROUGHTIME_HASH_LENGTH, (right), CRAGGY_ROUGHTIME_HASH_LENGTH); if (!craggy_calculateSHA512(scratch, (2*CRAGGY_ROUGHTIME_HASH_LENGTH)+1, (hash))) { ERROR_OCCURRED(CraggyResultInternalError) };
 #define HASH_NONCE(hash, scratch,leaf) scratch[0] = '\x00'; craggy_memcpy((scratch)+1,(leaf), CRAGGY_ROUGHTIME_NONCE_LENGTH); if (!craggy_calculateSHA512((scratch), CRAGGY_ROUGHTIME_NONCE_LENGTH+1, (hash))) { ERROR_OCCURRED(CraggyResultInternalError) };
 
-bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_public_key_t rootPublicKey, craggy_rough_time_response_t response, size_t responseLen, CraggyResult *result, craggy_roughtime_result *roughtimeResult) {
+bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_response_t response, size_t responseLen, CraggyResult *result, craggy_roughtime_result *roughtimeResult) {
 
     *result = CraggyResultGeneralError;
 

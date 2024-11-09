@@ -47,10 +47,10 @@ typedef enum {
 // Update to Draft 11
 #define CRAGGY_ROUGHTIME_VERSION 0x8000000b
 
-typedef uint8_t craggy_rough_time_payload_t[CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE];
+typedef uint8_t craggy_roughtime_payload_t[CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE];
 
-typedef craggy_rough_time_payload_t craggy_rough_time_request_t;
-typedef craggy_rough_time_payload_t craggy_rough_time_response_t;
+typedef craggy_roughtime_payload_t craggy_roughtime_request_t;
+typedef craggy_roughtime_payload_t craggy_roughtime_response_t;
 
 typedef uint8_t craggy_roughtime_nonce_t[CRAGGY_ROUGHTIME_NONCE_LENGTH];
 typedef uint8_t craggy_roughtime_nonce_t[CRAGGY_ROUGHTIME_NONCE_LENGTH];

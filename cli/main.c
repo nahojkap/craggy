@@ -119,8 +119,8 @@ int main(int argc, char *argv[]) {
     memcpy(&rootPublicKey, base64DecodedRootPublicKey, CRAGGY_ROUGHTIME_PUBLIC_KEY_LENGTH);
     free(base64DecodedRootPublicKey);
 
-    craggy_rough_time_request_t requestBuf;
-    memset(requestBuf, 0, sizeof(craggy_rough_time_request_t));
+    craggy_roughtime_request_t requestBuf;
+    memset(requestBuf, 0, sizeof(craggy_roughtime_request_t));
 
     craggy_roughtime_nonce_t nonceBytes;
 
@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
         const uint64_t start_us = MonotonicUs();
 
         size_t responseBufLen = 0;
-        craggy_rough_time_response_t responseBuf;
+        craggy_roughtime_response_t responseBuf;
 
         if (craggy_makeRequest(hostname, requestBuf, &craggyResult, responseBuf, &responseBufLen)) {
 
