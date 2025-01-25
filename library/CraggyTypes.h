@@ -45,7 +45,7 @@ typedef enum {
 #define CRAGGY_ROUGHTIME_HASH_LENGTH 32
 
 // Update to Draft 11
-#define CRAGGY_ROUGHTIME_VERSION 0x8000000b
+#define CRAGGY_ROUGHTIME_VERSION 0x8000000c
 
 typedef uint8_t craggy_roughtime_payload_t[CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE];
 

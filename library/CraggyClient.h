@@ -29,9 +29,9 @@ extern "C" {
  * @param rootPublicKey Root public key of the server in question
  * @param nonce The nonce to include in the request
  * @param requestBuf Buffer for the request
- * @return True if the request creation was successful, otherwise false
+ * @return Status of the invocation
  */
-bool craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_nonce_t nonce, craggy_roughtime_request_t requestBuf);
+CraggyResult craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_nonce_t nonce, craggy_roughtime_request_t requestBuf);
 
 /** Processes a response from the server, verifying the necessary signatures and extracting the time and radius if successful.
  *
@@ -39,20 +39,18 @@ bool craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_ro
  * @param rootPublicKey Root public key of the server in question
  * @param responseBuf Response to be processed
  * @param responseBufLen Size of the response to be processed
- * @param result Result of response processing
- * @param roughtimeResult
- * @return True if the request creation was successful, otherwise false and {@link result} will signal the error
+ * @param roughtimeResult Result structure populated with midpoint and radius according to documentation.
+ * @return Status of the invocation
  */
-bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_response_t responseBuf, size_t responseBufLen, CraggyResult *result,
-                            craggy_roughtime_result *roughtimeResult);
+CraggyResult craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_response_t responseBuf, size_t responseBufLen, craggy_roughtime_result *roughtimeResult);
 
 /** Generates a new nonce value, placing it in the nonce specified.
  *
  * @param result Result of the nonce creation
  * @param nonce Nonce to place the generated value in
- * @return True if successful, otherwise false and {@link result} will indicate the error
+ * @return Status of the invocation
  */
-bool craggy_generateNonce(CraggyResult *result, craggy_roughtime_nonce_t nonce);
+CraggyResult craggy_generateNonce(craggy_roughtime_nonce_t nonce);
 
 #ifdef __cplusplus
 }

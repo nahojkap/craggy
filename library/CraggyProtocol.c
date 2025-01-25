@@ -15,6 +15,7 @@
  */
 
 #include <memory.h>
+#include <stdio.h>
 
 #include "CraggyProtocol.h"
 
