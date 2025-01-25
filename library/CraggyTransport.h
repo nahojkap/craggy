@@ -23,11 +23,10 @@
  *
  * @param address The host/port to send the paylaod to.  In the form of <hostname> or <hostname:port>.  If port is omitted, the transports default value will be used.
  * @param requestBuf Buffer containing the request to send.
- * @param result Result of transport operation
  * @param responseBuf Buffer used for response
  * @param responseBufLen Size of the response buffer.  If a response is successfully received, the corresponding size of the response is signalled here too.
- * @return True if the request is successful, otherwise false (and outResult will indicate the error)
+ * @return Success if the request is successful, otherwise indicator of the error
  */
-bool craggy_makeRequest(const char *address, const craggy_roughtime_request_t requestBuf, CraggyResult *result, craggy_roughtime_response_t responseBuf, size_t *responseBufLen);
+CraggyResult craggy_makeRequest(const char *address, const craggy_roughtime_request_t requestBuf, craggy_roughtime_response_t responseBuf, size_t *responseBufLen);
 
 #endif //CRAGGY_UDPTRANSPORT_H

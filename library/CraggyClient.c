@@ -28,10 +28,11 @@
 
 #define CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE 12
 
-bool craggy_generateNonce(CraggyResult *result, craggy_roughtime_nonce_t nonce)
+CraggyResult craggy_generateNonce(craggy_roughtime_nonce_t nonce)
 {
-    craggy_fillRandomBytes(nonce, CRAGGY_ROUGHTIME_NONCE_LENGTH, result);
-    return *result == CraggyResultSuccess;
+    CraggyResult result = CraggyResultInternalError;
+    craggy_fillRandomBytes(nonce, CRAGGY_ROUGHTIME_NONCE_LENGTH, &result);
+    return result;
 }
 
 bool craggy_calculateSRVHash(craggy_roughtime_public_key_t rootPublicKey, uint8_t srvHash[32]) {
@@ -53,17 +54,15 @@ bool craggy_calculateSRVHash(craggy_roughtime_public_key_t rootPublicKey, uint8_
     return true;
 }
 
-bool craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_nonce_t nonce, craggy_roughtime_request_t requestBuf) {
+CraggyResult craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_nonce_t nonce, craggy_roughtime_request_t requestBuf) {
 
-    bool success = false;
-
+    CraggyResult result = CraggyResultInternalError;
     size_t requestBufLen = 0;
-    size_t paddingLen = CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE - (CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE + craggy_messageHeaderLen(4) + 32 + CRAGGY_ROUGHTIME_NONCE_LENGTH + sizeof(uint32_t));
+    size_t paddingLen = CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE - (CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE + craggy_messageHeaderLen(4) + CRAGGY_ROUGHTIME_NONCE_LENGTH + sizeof(uint32_t)  + 32);
     uint8_t padding[paddingLen];
     craggy_memset(padding, 0, paddingLen);
 
     CraggyRoughtimeMessageBuilder *builder = NULL;
-
     if (craggy_createMessageBuilder(4, requestBuf+CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE, CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE-12, &builder)) {
         uint32_t version = CRAGGY_ROUGHTIME_VERSION;
         uint8_t srvHash[32];
@@ -72,18 +71,19 @@ bool craggy_createRequest(craggy_roughtime_public_key_t rootPublicKey, craggy_ro
             if (craggy_addTagData(builder, CRAGGY_TAG_SRV, srvHash, 32)) {
                 if (craggy_addTagData(builder, CRAGGY_TAG_NONCE, nonce, CRAGGY_ROUGHTIME_NONCE_LENGTH)) {
                     if (craggy_addTagData(builder, CRAGGY_TAG_ZZZZ, padding, paddingLen)) {
-                        success = craggy_finish(builder, &requestBufLen);
+                        craggy_finish(builder, &requestBufLen);
                         assert(requestBufLen == (CRAGGY_ROUGHTIME_MIN_REQUEST_SIZE-CRAGGY_ROUGHTIME_MESSAGE_HEADER_SIZE));
                         // Insert the ROUGHTIME header + the size of the payload
                         craggy_memcpy(requestBuf,&CRAGGY_ROUGHTIME_HEADER, sizeof(CRAGGY_ROUGHTIME_HEADER));
-                        craggy_memcpy(requestBuf+sizeof(uint64_t),&requestBufLen, sizeof(uint32_t));
+                        craggy_memcpy(requestBuf+sizeof(uint64_t),&requestBufLen, sizeof(uint32_t));\
+                        result = CraggyResultSuccess;
                     }
                 }
             }
         }
         craggy_destroyMessageBuilder(builder);
     }
-    return success;
+    return result;
 }
 
 static bool craggy_verifySignatureWithContext(const craggy_roughtime_public_key_t rootPublicKey, const char *context, const uint8_t *signature, const uint8_t *msg, const size_t msgLen) {
@@ -117,13 +117,13 @@ static bool craggy_verifySignatureWithContext(const craggy_roughtime_public_key_
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 
-#define ERROR_OCCURRED(x) { *result = x; goto error; }
+#define ERROR_OCCURRED(x) { result = x; goto error; }
 #define HASH_NODE(hash, scratch,left, right) scratch[0] = '\x01'; craggy_memcpy((scratch)+1, (left), CRAGGY_ROUGHTIME_HASH_LENGTH); craggy_memcpy((scratch)+1+CRAGGY_ROUGHTIME_HASH_LENGTH, (right), CRAGGY_ROUGHTIME_HASH_LENGTH); if (!craggy_calculateSHA512(scratch, (2*CRAGGY_ROUGHTIME_HASH_LENGTH)+1, (hash))) { ERROR_OCCURRED(CraggyResultInternalError) };
-#define HASH_NONCE(hash, scratch,leaf) scratch[0] = '\x00'; craggy_memcpy((scratch)+1,(leaf), CRAGGY_ROUGHTIME_NONCE_LENGTH); if (!craggy_calculateSHA512((scratch), CRAGGY_ROUGHTIME_NONCE_LENGTH+1, (hash))) { ERROR_OCCURRED(CraggyResultInternalError) };
+#define HASH_REQUEST(hash, scratch,request) scratch[0] = '\x00'; craggy_memcpy((scratch)+1,(request), sizeof(craggy_roughtime_request_t)); if (!craggy_calculateSHA512((scratch), sizeof(craggy_roughtime_request_t)+1, (hash))) { ERROR_OCCURRED(CraggyResultInternalError) };
 
-bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_response_t response, size_t responseLen, CraggyResult *result, craggy_roughtime_result *roughtimeResult) {
+CraggyResult craggy_processResponse(craggy_roughtime_request_t request, craggy_roughtime_public_key_t rootPublicKey, craggy_roughtime_response_t response, size_t responseLen, craggy_roughtime_result *roughtimeResult) {
 
-    *result = CraggyResultGeneralError;
+    CraggyResult result = CraggyResultGeneralError;
 
 /**
     0. Verify the packet starts with ROUGHTIM header and size of payload
@@ -172,18 +172,8 @@ bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_pub
     // Validate the tags are present and accounted for - we do them all here to somewhat simplify the flow in the code
 
     if (!craggy_hasTag(message, CRAGGY_TAG_SREP) || !craggy_hasTag(message, CRAGGY_TAG_SIG) || !craggy_hasTag(message, CRAGGY_TAG_INDX) ||
-        !craggy_hasTag(message, CRAGGY_TAG_PATH) || !craggy_hasTag(message, CRAGGY_TAG_CERT) || !craggy_hasTag(message, CRAGGY_TAG_VER)) {
+        !craggy_hasTag(message, CRAGGY_TAG_PATH) || !craggy_hasTag(message, CRAGGY_TAG_CERT)) {
         ERROR_OCCURRED(CraggyResultParseErrorMissingTags);
-    }
-
-    // Validate the version matches our supported version
-    if (!craggy_getFixedLenTag(message, CRAGGY_TAG_VER, 4,&nestedData)) {
-        ERROR_OCCURRED(CraggyResultParseError);
-    }
-
-    const uint32_t responseVersion = nestedData[0] | (nestedData[1] << 8) | (nestedData[2] << 16) | (nestedData[3] << 24);
-    if (responseVersion != CRAGGY_ROUGHTIME_VERSION) {
-        ERROR_OCCURRED(CraggyResultUnsupportedVersionError);
     }
 
     // Validate the CERT message tags
@@ -218,8 +208,18 @@ bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_pub
     if (!craggy_parseMessage(nestedData, nestedDataSize, &protocolResult, &srepMessage)) {
         ERROR_OCCURRED(CraggyResultParseError);
     }
-    if (!craggy_hasTag(srepMessage, CRAGGY_TAG_ROOT) || !craggy_hasTag(srepMessage, CRAGGY_TAG_MIDP) || !craggy_hasTag(srepMessage, CRAGGY_TAG_RADI)) {
+    if (!craggy_hasTag(srepMessage, CRAGGY_TAG_ROOT) || !craggy_hasTag(srepMessage, CRAGGY_TAG_MIDP) || !craggy_hasTag(srepMessage, CRAGGY_TAG_RADI) || !craggy_hasTag(srepMessage, CRAGGY_TAG_VER) || !craggy_hasTag(srepMessage, CRAGGY_TAG_VERS)) {
         ERROR_OCCURRED(CraggyResultParseErrorMissingTags);
+    }
+
+    // First, validate the version matches our supported version
+    if (!craggy_getFixedLenTag(srepMessage, CRAGGY_TAG_VER, 4,&nestedData)) {
+        ERROR_OCCURRED(CraggyResultParseError);
+    }
+
+    const uint32_t responseVersion = nestedData[0] | (nestedData[1] << 8) | (nestedData[2] << 16) | (nestedData[3] << 24);
+    if (responseVersion != CRAGGY_ROUGHTIME_VERSION) {
+        ERROR_OCCURRED(CraggyResultUnsupportedVersionError);
     }
 
     // At this point we should have all the tags validated (not for length though)
@@ -230,7 +230,7 @@ bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_pub
         ERROR_OCCURRED(CraggyResultParseErrorTagSizeMismatch);
     }
 
-    if (!craggy_verifySignatureWithContext(rootPublicKey, "RoughTime v1 delegation signature--", signature, craggy_getMessageBuffer(delegationMessage), craggy_getMessageBufferSize(delegationMessage))) {
+    if (!craggy_verifySignatureWithContext(rootPublicKey, "RoughTime v1 delegation signature", signature, craggy_getMessageBuffer(delegationMessage), craggy_getMessageBufferSize(delegationMessage))) {
         ERROR_OCCURRED(CraggyResultAuthenticationSignatureError);
     }
 
@@ -265,9 +265,9 @@ bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_pub
     assert((pathSize & (uint32_t) CRAGGY_ROUGHTIME_HASH_LENGTH) == 0);
 
     uint8_t hash[CRAGGY_CRYPTO_SHA512_LENGTH];
-    uint8_t scratch[CRAGGY_ROUGHTIME_HASH_LENGTH + CRAGGY_ROUGHTIME_HASH_LENGTH + 1];
+    uint8_t scratch[CRAGGY_ROUGHTIME_HASH_LENGTH + sizeof(craggy_roughtime_request_t)+ 1];
 
-    HASH_NONCE(hash, scratch, nonce);
+    HASH_REQUEST(hash, scratch, request);
 
     while (pathSize > 0) {
         const bool isRight = (index & (uint32_t )1) == 0;
@@ -319,11 +319,11 @@ bool craggy_processResponse(craggy_roughtime_nonce_t nonce, craggy_roughtime_pub
     craggy_memcpy(&roughtimeResult->radius, nestedData, sizeof(craggy_roughtime_radius_t));
     craggy_memcpy(&roughtimeResult->midpoint, &midPoint, sizeof(craggy_roughtime_t));
 
-    *result = CraggyResultSuccess;
+    result = CraggyResultSuccess;
     goto exit;
 
 error:
-    assert(*result != CraggyResultSuccess);
+    assert(result != CraggyResultSuccess);
 
 exit:
 
@@ -332,6 +332,6 @@ exit:
     craggy_destroyMessage(srepMessage);
     craggy_destroyMessage(message);
 
-    return *result == CraggyResultSuccess;
+    return result;
 
 }

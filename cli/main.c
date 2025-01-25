@@ -45,7 +45,7 @@ uint64_t RealtimeUs() { return TimeUs(CLOCK_REALTIME); }
 
 int main(int argc, char *argv[]) {
 
-    CraggyResult craggyResult;
+    CraggyResult craggyResult = CraggyResultGeneralError;
 
     int result = 1;
 
@@ -103,9 +103,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (publicKey == NULL || hostname == NULL)
-    {
-        printf("usage: craggy -h <hostname:port> -k <public key> (-n <nonce>)");
+    if (publicKey == NULL || hostname == NULL) {
+        printf("usage: craggy -h <hostname:port> -k <public key> (-n <nonce>)\n");
         return 1;
     }
 
@@ -124,8 +123,7 @@ int main(int argc, char *argv[]) {
 
     craggy_roughtime_nonce_t nonceBytes;
 
-    if (nonce != NULL)
-    {
+    if (nonce != NULL)  {
         size_t outLen = 0;
         unsigned char *decodedNonceBytes = base64_decode((unsigned char*)nonce, strlen(nonce), &outLen);
         if (outLen != CRAGGY_ROUGHTIME_NONCE_LENGTH) {
@@ -136,21 +134,23 @@ int main(int argc, char *argv[]) {
         free(decodedNonceBytes);
     }
     else {
-        if (!craggy_generateNonce(&craggyResult, nonceBytes))
+        craggyResult = craggy_generateNonce(nonceBytes);
+        if (craggyResult != CraggyResultSuccess)
         {
             printf("Error generating nonce: %d",craggyResult);
             goto error;
         }
     }
 
-    if (craggy_createRequest(rootPublicKey, nonceBytes, requestBuf))
-    {
+    craggyResult = craggy_createRequest(rootPublicKey, nonceBytes, requestBuf);
+    if (craggyResult == CraggyResultSuccess) {
         const uint64_t start_us = MonotonicUs();
 
         size_t responseBufLen = 0;
         craggy_roughtime_response_t responseBuf;
 
-        if (craggy_makeRequest(hostname, requestBuf, &craggyResult, responseBuf, &responseBufLen)) {
+        craggyResult = craggy_makeRequest(hostname, requestBuf, responseBuf, &responseBufLen);
+        if (craggyResult  == CraggyResultSuccess) {
 
             const uint64_t end_us = MonotonicUs();
             const uint64_t roundtripElapsedTimeUs = (end_us - start_us) / 2;
@@ -158,7 +158,8 @@ int main(int argc, char *argv[]) {
 
             craggy_roughtime_result roughtimeResult;
 
-            if (!craggy_processResponse(nonceBytes, rootPublicKey, responseBuf, responseBufLen, &craggyResult, &roughtimeResult)) {
+            craggyResult = craggy_processResponse(requestBuf, rootPublicKey, responseBuf, responseBufLen, &roughtimeResult);
+            if (craggyResult != CraggyResultSuccess) {
                 printf("Error parsing response: %d", craggyResult);
                 goto error;
             }
@@ -177,19 +178,23 @@ int main(int argc, char *argv[]) {
             goto error;
         }
 
+    } 
+    else
+    {
+        printf("Error creating request %d\n", craggyResult);
+        goto error;
     }
 
     goto exit;
 error:
-    printf("Error request %d\n", result);
-
-    assert (result != 0);
+    printf("Error request %d\n", craggyResult);
+    assert (craggyResult != 0);
 
 exit:
     free(hostname);
     free(publicKey);
 
-    return result;
+    return craggyResult;
 
 
 }

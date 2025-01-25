@@ -29,11 +29,11 @@
 #include "CraggyTypes.h"
 #include "CraggyOS.h"
 
-#define ERROR_OCCURRED(x) { *result = x; goto error; }
+#define ERROR_OCCURRED(x) { result = x; goto error; }
 
-bool craggy_createSocket(int *outSocket, const char *address, CraggyResult *result) {
+CraggyResult craggy_createSocket(int *outSocket, const char *address) {
 
-    *result = CraggyResultGeneralError;
+    CraggyResult result = CraggyResultGeneralError;
 
     char *host = craggy_malloc(strlen(address) + 1);
     host = strcpy(host, address);
@@ -77,33 +77,34 @@ bool craggy_createSocket(int *outSocket, const char *address, CraggyResult *resu
     }
 
     *outSocket = sock;
-    *result = CraggyResultSuccess;
+    result = CraggyResultSuccess;
 
     goto exit;
 
 error:
-    assert(*result != CraggyResultSuccess);
+    assert(result != CraggyResultSuccess);
     close(sock);
 
 exit:
     freeaddrinfo(addrs);
     craggy_free(host);
-    return *result == CraggyResultSuccess;
+    return result;
 }
 
-bool craggy_makeRequest(const char *address, const craggy_roughtime_request_t requestBuf, CraggyResult *result, craggy_roughtime_response_t responseBuf, size_t *responseBufLen) {
+CraggyResult craggy_makeRequest(const char *address, const craggy_roughtime_request_t requestBuf, craggy_roughtime_response_t responseBuf, size_t *responseBufLen) {
 
-    *result = CraggyResultGeneralError;
+    CraggyResult result = CraggyResultGeneralError;
 
     int fd = 0;
-    if (!craggy_createSocket(&fd, address,result)) {
-        ERROR_OCCURRED(*result);
+    if (craggy_createSocket(&fd, address) != CraggyResultSuccess) {
+        ERROR_OCCURRED(result);
     }
 
     struct timeval timeout;
     timeout.tv_sec = 10;
     timeout.tv_usec = 0;
     setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+
 
     ssize_t r;
     do {
@@ -127,13 +128,13 @@ bool craggy_makeRequest(const char *address, const craggy_roughtime_request_t re
     }
 
     *responseBufLen = (size_t)bufLen;
-    *result = CraggyResultSuccess;
+    result = CraggyResultSuccess;
     goto exit;
 
 error:
-    assert(*result != CraggyResultSuccess);
+    assert(result != CraggyResultSuccess);
 
 exit:
     close(fd);
-    return *result == CraggyResultSuccess;
+    return result;
 }

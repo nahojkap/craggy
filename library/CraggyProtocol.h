@@ -87,6 +87,8 @@ static const uint64_t CRAGGY_ROUGHTIME_HEADER = 0x4d49544847554f52;
 +------------+----------------------+---------------+
 | 0x50455253 | SREP                 | [[this memo]] |
 +------------+----------------------+---------------+
+| 0x53524556 | VERS                 | [[this memo]] |
++------------+----------------------+---------------+
 | 0x544e494d | MINT                 | [[this memo]] |
 +------------+----------------------+---------------+
 | 0x544f4f52 | ROOT                 | [[this memo]] |
@@ -111,6 +113,7 @@ static const uint64_t CRAGGY_ROUGHTIME_HEADER = 0x4d49544847554f52;
 #define CRAGGY_TAG_PUBK MAKE_TAG("PUBK")
 #define CRAGGY_TAG_MIDP MAKE_TAG("MIDP")
 #define CRAGGY_TAG_SREP MAKE_TAG("SREP")
+#define CRAGGY_TAG_VERS MAKE_TAG("VERS")
 #define CRAGGY_TAG_MINT MAKE_TAG("MINT")
 #define CRAGGY_TAG_ROOT MAKE_TAG("ROOT")
 #define CRAGGY_TAG_CERT MAKE_TAG("CERT")
@@ -162,7 +165,8 @@ bool craggy_getFixedLenTag(const CraggyRoughtimeMessage *message, craggy_tag_t t
  */
 const uint8_t *craggy_getMessageBuffer(const CraggyRoughtimeMessage *message);
 
-/** Retrieves the underlying buffer size backing this message.
+/** Retrieves the underlying buffer size backing this message.#include <stdio.h>
+
  *
  * @param message Message to retrieve buffer size from
  * @return Underlying buffer size
